@@ -4,6 +4,10 @@ import copy
 import sys
 import traceback
 
+import time
+import signal
+import errno
+
 from util import Vertex
 from util import Edge
 from util import Graph
@@ -58,6 +62,7 @@ def PlayGraph(s, t, graph):
     while len([v for v in graph.V if v.color == active_player]) > 0:
         # First, try to just *run* the removal code.
         try:
+            #print(active_player)
             chosen_vertex = players[active_player].ChooseVertexToRemove(copy.copy(graph), active_player)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
@@ -123,13 +128,13 @@ class RandomPlayer:
 if __name__ == "__main__":
     # NOTE: we are not creating INSTANCES of these classes, we're defining the players
     # as the class itself. This lets us call the static methods.
-    p1 = RandomPlayer
+    #p1 = RandomPlayer
     # Comment the above line and uncomment the next two if
     # you'd like to test the PercolationPlayer code in this repo.
-    # from percolator import PercolationPlayer
-    # p1 = PercolationPlayer
+    from percolation import PercolationPlayer
+    p1 = PercolationPlayer
     p2 = RandomPlayer
-    iters = 200
+    iters = 20
     wins = PlayBenchmark(p1, p2, iters)
     print(wins)
     print(
