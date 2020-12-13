@@ -6,12 +6,12 @@ from util import Graph
 
 class PercolationPlayer:
 	class Tree:
-		def __init__(self, data, move, parent, player):
+		def __init__(self, data, move, parent):
 			self.children = []
 			self.data = data
 			self.move = move
 			self.parent = parent
-			self.player = player
+
 		def __repr__(self):
 			graph = self.data
 			children = []
@@ -22,6 +22,10 @@ class PercolationPlayer:
 			returnList = [graph.V, children]
 			return str(returnList)
 
+	 # Returns the incident edges on a vertex.
+	def IncidentEdges(graph, v):
+		return [e for e in graph.E if (e.a == v or e.b == v)]
+
 ##########################
 ###### MINI-MAX A-B ######
 ##########################
@@ -29,11 +33,12 @@ class PercolationPlayer:
 	class AlphaBeta:
 	    # print utility value of root node (assuming it is max)
 	    # print names of all nodes visited during search
-		def __init__(self, game_tree):
-			self.game_tree = game_tree  # GameTree
+		def __init__(self, game_tree, active_player):
+			self.game_tree = game_tree
+			self.active_player = active_player
 
 		def alpha_beta_search(self, node):
-			infinity = float('inf')
+			infinity = 100000000000
 			best_val = -infinity
 			beta = infinity
 
@@ -53,7 +58,7 @@ class PercolationPlayer:
 	        #print "AlphaBeta-->MAX: Visited Node :: " + node.Name
 			if self.isTerminal(node):
 				return self.getUtility(node)
-			infinity = float('inf')
+			infinity = 100000000000
 			value = -infinity
 
 			successors = self.getSuccessors(node)
@@ -75,7 +80,7 @@ class PercolationPlayer:
 			#print "AlphaBeta-->MIN: Visited Node :: " + node.Name
 			if self.isTerminal(node):
 				return self.getUtility(node)
-			infinity = float('inf')
+			infinity = 100000000000
 			value = infinity
 
 			successors = self.getSuccessors(node)
@@ -107,15 +112,69 @@ class PercolationPlayer:
 			return len(node.children) == 0
 
 		def getUtility(self, node):
-			winningStates = []
-			loosingStates = []
-			if node in winningStates:
-				return float('inf')
-			elif node in winningStates:
-				infinity = float('inf')
-				return -infinity
+			graph = node.data
+			ally = 0
+			opponent = 0
+			for v in node.data.V:
+				if v.color == self.active_player:
+					ally += 1
+				opponent +=1
+			total = ally + opponent
+
+			if len(node.data.E) == total + total*(total - 3)/2:
+				return self.allEdgesHueristic(node,total)
+			return ally - opponent
+
+		def allEdgesHueristic(self, node, total):
+			if total % 2 == 0:
+				if node.move.color == self.active_player:
+					return 1000
+				else:
+					return -1000
 			else:
-				return random.randint(-100,100)
+				if node.move.color == self.active_player:
+					return -1000
+				else:
+					return 1000
+
+		def getWinningStates(self, activePlayer):
+			#a = Vertex("a",4)
+			#f = Vertex("f", 3)
+			#e1 = Edge(a,d,5)
+			#e2 = Edge(a, b, 7)
+			#e3 = Edge(b, d, 9)
+			#V = {a,b,c}
+			#E = {e1, e2, e3, e4, e5, e6, e7}
+			#G = Graph(V, E)
+			winningStates = []
+			#WINNING STATE 1
+			a1 = Vertex("a", activePlayer)
+			b1 = Vertex("b", 1 - activePlayer)
+			e1 = Edge(a1, b1)
+			V1 = {a1, b1}
+			E1 = {e1}
+			winningState1 = Graph(V1, E1)
+			winningStates.append(winningState1)
+
+			#WINNING STATE 2
+			a2 = Vertex("a", activePlayer)
+			b2 = Vertex("b", activePlayer)
+			c2 = Vertex("c", 1 - activePlayer)
+			e1 = Edge(a2, b2)
+			e2 = Edge(a2, c2)
+			V2 = {a2, b2, c2}
+			E2 = {e1, e2}
+			winningState2 = Graph(V2, E2)
+			winningStates.append(winningState2)
+
+			return winningStates
+
+			#WINNING STATE 3
+			
+		def getLosingStates(self, activePlayer):
+			losingStates = []
+			#LOSING STATE 1
+			return losingStates
 #EXIT MINI MAX
 	def gameOver(graph):
 		node = graph.V[0]
@@ -142,10 +201,14 @@ class PercolationPlayer:
 		to_remove = {u for u in graph.V if len(graph.IncidentEdges(u)) == 0}
 		graph.V.difference_update(to_remove)
 
+	def getPotentialVerticies(graph):
+		verts ={vertex: 0 for vertex in graph.V}
+		return verts
+
 	def createGame_StateTree(graph, player, depth, parent, move):
 		if depth == 2:
-			return PercolationPlayer.Tree(graph, move, parent, player)
-		root = PercolationPlayer.Tree(graph, move, parent, player)
+			return PercolationPlayer.Tree(graph, move, parent)
+		root = PercolationPlayer.Tree(graph, move, parent)
 		verts = [v for v in graph.V if v.color == player]
 		for v in verts:
 			newState = copy.deepcopy(graph)
@@ -159,7 +222,7 @@ class PercolationPlayer:
 
 	def ChooseVertexToRemove(graph, player):
 		tree = PercolationPlayer.createGame_StateTree(graph, player, 0, None, None)
-		MM1 = PercolationPlayer.AlphaBeta(tree)
+		MM1 = PercolationPlayer.AlphaBeta(tree, player)
 		Vertexs_new = MM1.alpha_beta_search(tree)
 		#print("OG Graph")
 		#print(graph.V)
