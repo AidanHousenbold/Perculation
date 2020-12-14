@@ -3,6 +3,8 @@ import copy
 from util import Vertex
 from util import Edge
 from util import Graph
+import cProfile
+import time
 
 class PercolationPlayer:
 	class Tree:
@@ -22,9 +24,25 @@ class PercolationPlayer:
 			returnList = [graph.V, children]
 			return str(returnList)
 
+	# Gets the edges attached to a given vertex
+	def getEdges(graph, vertex):
+	 	listofedges = []
+	 	for edge in graph.E:
+	 		if edge.a == vertex:
+	 			listofedges.append(edge)
+	 		elif edge.b == vertex:
+	 			listofedges.append(edge)
+	 	return listofedges
+
 	 # Returns the incident edges on a vertex.
 	def IncidentEdges(graph, v):
 		return [e for e in graph.E if (e.a == v or e.b == v)]
+	# Gets the other vertex on an edge from a given edge and vertex
+	def getOtherVertex(edge, vertex):
+		if edge.a == vertex:
+			return edge.b
+		else:
+			return edge.a
 
 ##########################
 ###### MINI-MAX A-B ######
@@ -113,18 +131,28 @@ class PercolationPlayer:
 
 		def getUtility(self, node):
 			graph = node.data
-			ally = 0
-			opponent = 0
-			for v in node.data.V:
-				if v.color == self.active_player:
-					ally += 1
-				opponent +=1
-			total = ally + opponent
-
+			ally = [v for v in node.data.V if v.color == self.active_player]
+			opponent = [v for v in node.data.V if v.color == 1 - self.active_player]
+			total = len(ally) + len(opponent)
 			if len(node.data.E) == total + total*(total - 3)/2:
 				return self.allEdgesHueristic(node,total)
-			return ally - opponent
+			if node.data in self.getWinningStates(self.active_player):
+				return 10000000000000
+			if node.data in self.getLosingStates(self.active_player):
+				return -10000000000000
+			num_ally_edges = 0
+			numgoodedges = 0
+			numbadedges = 0
 
+			for v in ally:
+				for edge in PercolationPlayer.getEdges(node.data, v):
+					if PercolationPlayer.getOtherVertex(edge, v).color == self.active_player:
+						numgoodedges += 1
+					else:
+						numbadedges +=1
+
+
+			return (numgoodedges - numbadedges) + (len(ally) - len(opponent)) 
 		def allEdgesHueristic(self, node, total):
 			if total % 2 == 0:
 				if node.move.color == self.active_player:
@@ -138,16 +166,8 @@ class PercolationPlayer:
 					return 1000
 
 		def getWinningStates(self, activePlayer):
-			#a = Vertex("a",4)
-			#f = Vertex("f", 3)
-			#e1 = Edge(a,d,5)
-			#e2 = Edge(a, b, 7)
-			#e3 = Edge(b, d, 9)
-			#V = {a,b,c}
-			#E = {e1, e2, e3, e4, e5, e6, e7}
-			#G = Graph(V, E)
 			winningStates = []
-			#WINNING STATE 1
+			#WINNING STATE 1 (2 Vertices)
 			a1 = Vertex("a", activePlayer)
 			b1 = Vertex("b", 1 - activePlayer)
 			e1 = Edge(a1, b1)
@@ -156,7 +176,8 @@ class PercolationPlayer:
 			winningState1 = Graph(V1, E1)
 			winningStates.append(winningState1)
 
-			#WINNING STATE 2
+
+			#WINNING STATE 2 (3 Vertices)
 			a2 = Vertex("a", activePlayer)
 			b2 = Vertex("b", activePlayer)
 			c2 = Vertex("c", 1 - activePlayer)
@@ -167,13 +188,88 @@ class PercolationPlayer:
 			winningState2 = Graph(V2, E2)
 			winningStates.append(winningState2)
 
-			return winningStates
+			#WINNING STATE 3 (4 Vertices)
+			a4 = Vertex("a", activePlayer)
+			b4 = Vertex("b", activePlayer)
+			c4 = Vertex("c", 1 - activePlayer)
+			d4 = Vertex("d", 1 - activePlayer)
+
+			e1 = Edge(a4, b4)
+			e2 = Edge(a4, c4)
+			e3 = Edge(a4, d4)
+			e4 = Edge(c4, d4)
+			e5 = Edge(b4, c4)
+
+			V4 = {a4, b4, c4, d4}
+			E3 = {e1, e2, e3}
+			winningState3 = Graph(V4, E3)
+			winningStates.append(winningState3)
+			#ADD ON 3
+			
+			E4 = {e1, e2, e3, e4}
+			winningStates.append(Graph(V4, E4))
+
+			E5 = {e1, e2, e3, e4, e5}
+			winningStates.append(Graph(V4, E5))
 
 			#WINNING STATE 3
-			
+			return winningStates
 		def getLosingStates(self, activePlayer):
 			losingStates = []
 			#LOSING STATE 1
+			a1 = Vertex("a", activePlayer)
+			b1 = Vertex("b", activePlayer)
+			c1 = Vertex("c", 1 - activePlayer)
+			d1 = Vertex("d", 1 - activePlayer)
+			e1 = Edge(a1, b1)
+			e2 = Edge(b1, c1)
+			e3 = Edge(c1, d1)
+			V1 = {a1, b1, c1, d1}
+			E1 = {e1, e2, e3}
+			losingState1 = Graph(V1, E1)
+			losingStates.append(losingState1)
+
+			#LOSING STATE 2
+			a1 = Vertex("a", activePlayer)
+			b1 = Vertex("b", 1 - activePlayer)
+			c1 = Vertex("c", activePlayer)
+			e1 = Edge(a1, b1)
+			e2 = Edge(b1, c1)
+			V1 = {a1, b1, c1}
+			E1 = {e1, e2}
+			losingState2 = Graph(V1, E1)
+			losingStates.append(losingState2)
+
+			#LOSING STATE 3 (4 Vertices)
+			a3 = Vertex("a", 1 - activePlayer)
+			b3 = Vertex("b", 1 - activePlayer)
+			c3 = Vertex("c", activePlayer)
+			d3 = Vertex("d", activePlayer)
+
+			e1 = Edge(a3, b3)
+			e2 = Edge(a3, c3)
+			e3 = Edge(a3, d3)
+			e4 = Edge(c3, d3)
+			e5 = Edge(b3, d3)
+
+			V4 = {a3, b3, c3, d3}
+			E3 = {e1, e2, e3}
+			losingState3 = Graph(V4, E3)
+			losingStates.append(losingState3)
+			#ADD ON 
+			
+			E4 = {e1, e2, e3, e4}
+			losingStates.append(Graph(V4, E4))
+			
+			E3a = {e1, e2, Edge(b3, d3)}
+			losingStates.append(Graph(V4, E3a))
+
+			E5 = {e1, e4}
+			losingStates.append(Graph(V4, E5))
+
+			E6 = {e2, e5}
+			losingStates.append(Graph(V4, E5))
+			#LOSING STATE 5
 			return losingStates
 #EXIT MINI MAX
 	def gameOver(graph):
@@ -218,17 +314,39 @@ class PercolationPlayer:
 		return root
 
 	def ChooseVertexToColor(graph, player): 
-		return random.choice([v for v in graph.V if v.color == -1])
+		tic = time.perf_counter()
+		uncolored = [v for v in graph.V if v.color == -1]
+		champ = uncolored[0]
+		for v in uncolored:
+			if (len(PercolationPlayer.getEdges(graph, v))) > len(PercolationPlayer.getEdges(graph, champ)):
+				champ = v
+		toc = time.perf_counter()
+		if toc - tic > 0.5:
+			print("colorTooLong")
+		return champ
 
-	def ChooseVertexToRemove(graph, player):
+	def ChooseVertexToRemove(graph, player): 
+		tic = time.perf_counter()
 		tree = PercolationPlayer.createGame_StateTree(graph, player, 0, None, None)
+		#toc = time.perf_counter()
+		#print(f"TreeCreat{toc - tic:0.4f} seconds")
+		#tic = time.perf_counter()
 		MM1 = PercolationPlayer.AlphaBeta(tree, player)
+		#toc = time.perf_counter()
+		#print(f"initialize{toc - tic:0.4f} seconds")
+		#tic = time.perf_counter()
 		Vertexs_new = MM1.alpha_beta_search(tree)
+		toc = time.perf_counter()
+		if(toc - tic) > 0.5:
+			print("toolong")
+			print(f"AlphaBeta{toc - tic:0.4f} seconds")
 		#print("OG Graph")
 		#print(graph.V)
 		#print("_________________________________________")
 		#print("vertex")
 		#print(Vertexs_new.move)
+		
+	
 		return Vertexs_new.move 
 
 
